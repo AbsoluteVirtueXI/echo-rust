@@ -1,8 +1,10 @@
 use tokio::io;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::stream::{StreamExt};
-
 use std::process::exit;
+
+use echo_rust::easy_net::*;
+
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
@@ -18,8 +20,14 @@ async fn main() -> io::Result<()> {
         }
     };
 
+
     /// Loop over incoming connection
-    while let Some(tcp_stream) = listener.incoming().next().await {
+    while let Some(tcp_stream) = listener.incoming().map(|res_stream|{
+        match res_stream {
+            Ok(stream) => Ok(TcpConnection::new(stream)),
+            Err(e) => Err(e)
+        }
+    }).next().await {
         match tcp_stream {
             Ok(connection) => {
                 tokio::spawn(echo(connection));
@@ -32,7 +40,9 @@ async fn main() -> io::Result<()> {
     Ok(())
 }
 
-async fn echo(stream: TcpStream) -> io::Result<()> {
+/// Handle the connection of the echo client
+async fn echo(stream: TcpConnection) -> io::Result<()> {
+    let stream = stream.stream;
     let peer_addr = stream.peer_addr()?;
     println!("Connection from {}:{}", peer_addr.ip(), peer_addr.port());
     let (mut recv, mut send) = io::split(stream);
