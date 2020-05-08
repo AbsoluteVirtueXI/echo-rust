@@ -6,9 +6,10 @@ use std::process::exit;
 use echo_rust::easy_net::*;
 
 
+/// main
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    /// Bind listener to a port
+    // Bind listener to a port
     let mut listener = match TcpListener::bind("127.0.0.1:7777").await {
         Ok(listener) => {
             println!("Server running");
@@ -21,7 +22,7 @@ async fn main() -> io::Result<()> {
     };
 
 
-    /// Loop over incoming connection
+    // Loop over incoming connection
     while let Some(tcp_stream) = listener.incoming().map(|res_stream|{
         match res_stream {
             Ok(stream) => Ok(TcpConnection::new(stream)),
