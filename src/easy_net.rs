@@ -10,6 +10,7 @@ use tokio::stream::{StreamExt};
 
 const UNSPECIFIED_IP: Ipv4Addr = Ipv4Addr::UNSPECIFIED;
 const UNSPECIFIED_PORT: u16 = 0;
+const MAX_CONNECTION: usize = 100;
 
 fn _get_local_SocketAddr(stream: &TcpStream) -> SocketAddr {
     match stream.local_addr() {
@@ -56,30 +57,33 @@ enum Client {
 // TODO: add a connection pool to avoid DOS
 pub struct TcpServer {
     pub listener: TcpListener,
+    pub connection_pool: Vec<TcpConnection>,
 }
 
 impl TcpServer {
     pub async fn bind(s: &str) -> io::Result<TcpServer> {
         let res_server = TcpListener::bind("127.0.0.1:7777").await;
+        let connection_pool = Vec::with_capacity(MAX_CONNECTION);
         match res_server {
-            Ok(listener) => Ok(TcpServer { listener }),
+            Ok(listener) => Ok(TcpServer { listener, connection_pool }),
             Err(e) => Err(e)
         }
     }
+
     pub async fn run<T>(&mut self, protocol: fn(TcpConnection) -> T)
     where T: Future + Send + 'static,
           T::Output: Send + 'static,
     {
-        while let Some(tcp_stream) = self.listener.incoming().map(|res_stream| {
-            match res_stream {
-                Ok(stream) => Ok(TcpConnection::new(stream)),
-                Err(e) => Err(e), // TODO: maybe i can handle error here directly
-            }
+        while let Some(tcp_stream) = self.listener.incoming().map(
+            |res_stream| {
+                match res_stream {
+                    Ok(stream) => Ok(TcpConnection::new(stream)),
+                    Err(e) => Err(e), // TODO: maybe i can handle error here directl
+                }
         }).next().await {
             match tcp_stream {
                 Ok(connection) => {
-                    println!("Connection received from {} to {} at {:?}", connection.peer_socket_addr, connection.local_socket_addr, connection.date_open);
-                    tokio::spawn(protocol(connection));
+                    tokio::spawn(self.handle_connection(protocol, connection));
                 }
                 Err(e) => {
                     println!("Connection Error: {}", e);
@@ -87,8 +91,17 @@ impl TcpServer {
             }
         }
     }
+
+    async fn handle_connection<T>(&mut self, protocol: fn(TcpConnection) -> T, connection: TcpConnection)
+    where T: Future + Send + 'static,
+    T::Output: Send + 'static
+    {
+        println!("Connection received from {} to {} at {:?}", connection.peer_socket_addr, connection.local_socket_addr, connection.date_open);
+        protocol(connection).await;
+        println!("Connection disconneted 1");
+    }
+
     pub async fn stop() {}
-    pub async fn handle_connection() {}
 }
 
 // TODO: add a connection pool to avoid DOS

@@ -12,7 +12,7 @@ async fn main() -> io::Result<()> {
     // Bind listener to a port
     let mut server = match TcpServer::bind("127.0.0.1:7777").await {
         Ok(server) => {
-            println!("Server running");
+            println!("Server bound.");
             server
         },
         Err(e) => {
@@ -21,7 +21,6 @@ async fn main() -> io::Result<()> {
         }
     };
 
-    // Loop over incoming connection
     server.run(echo_protocol).await;
 
     Ok(())
