@@ -21,16 +21,15 @@ async fn main() -> io::Result<()> {
         }
     };
 
-
     // Loop over incoming connection
-    server.run().await;
+    server.run(echo_protocol).await;
 
     Ok(())
 }
 
-/*
+
 /// Handle the connection of the echo client
-async fn echo(stream: TcpConnection) -> io::Result<()> {
+async fn echo_protocol(stream: TcpConnection) -> io::Result<()> {
     let stream = stream.stream;
     let peer_addr = stream.peer_addr()?;
     println!("Connection from {}:{}", peer_addr.ip(), peer_addr.port());
@@ -38,4 +37,4 @@ async fn echo(stream: TcpConnection) -> io::Result<()> {
     io::copy(&mut recv, &mut send).await?;
     println!("Disconnection from {}:{}", peer_addr.ip(), peer_addr.port());
     Ok(())
-}*/
+}

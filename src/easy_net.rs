@@ -3,6 +3,7 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::time::SystemTime;
 use std::mem::size_of_val;
+use std::future::Future;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io;
 use tokio::stream::{StreamExt};
@@ -65,7 +66,10 @@ impl TcpServer {
             Err(e) => Err(e)
         }
     }
-    pub async fn run(&mut self) {
+    pub async fn run<T>(&mut self, protocol: fn(TcpConnection) -> T)
+    where T: Future + Send + 'static,
+          T::Output: Send + 'static,
+    {
         while let Some(tcp_stream) = self.listener.incoming().map(|res_stream| {
             match res_stream {
                 Ok(stream) => Ok(TcpConnection::new(stream)),
@@ -75,7 +79,7 @@ impl TcpServer {
             match tcp_stream {
                 Ok(connection) => {
                     println!("Connection received from {} to {} at {:?}", connection.peer_socket_addr, connection.local_socket_addr, connection.date_open);
-                    tokio::spawn(echo(connection));
+                    tokio::spawn(protocol(connection));
                 }
                 Err(e) => {
                     println!("Connection Error: {}", e);
@@ -166,7 +170,6 @@ impl Request {
         }
     }
 
-
     pub fn size(&self) -> usize {
         size_of_val(&self.content[..])
     }
@@ -189,15 +192,4 @@ impl Response {
     pub fn size(&self) -> usize {
         size_of_val(&self.content[..])
     }
-}
-
-/// Handle the connection of the echo client
-async fn echo(stream: TcpConnection) -> io::Result<()> {
-    let stream = stream.stream;
-    let peer_addr = stream.peer_addr()?;
-    println!("Connection from {}:{}", peer_addr.ip(), peer_addr.port());
-    let (mut recv, mut send) = io::split(stream);
-    io::copy(&mut recv, &mut send).await?;
-    println!("Disconnection from {}:{}", peer_addr.ip(), peer_addr.port());
-    Ok(())
 }
