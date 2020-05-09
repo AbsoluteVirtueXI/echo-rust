@@ -71,8 +71,8 @@ impl TcpServer {
     }
 
     pub async fn run<T>(&mut self, protocol: fn(TcpConnection) -> T)
-    where T: Future + Send + 'static,
-          T::Output: Send + 'static,
+        where T: Future + Send + 'static,
+              T::Output: Send + 'static,
     {
         while let Some(tcp_stream) = self.listener.incoming().map(
             |res_stream| {
@@ -80,10 +80,10 @@ impl TcpServer {
                     Ok(stream) => Ok(TcpConnection::new(stream)),
                     Err(e) => Err(e), // TODO: maybe i can handle error here directl
                 }
-        }).next().await {
+            }).next().await {
             match tcp_stream {
                 Ok(connection) => {
-                    tokio::spawn(self.handle_connection(protocol, connection));
+                    self.handle_connection(protocol, connection);
                 }
                 Err(e) => {
                     println!("Connection Error: {}", e);
@@ -92,19 +92,24 @@ impl TcpServer {
         }
     }
 
-    async fn handle_connection<T>(&mut self, protocol: fn(TcpConnection) -> T, connection: TcpConnection)
-    where T: Future + Send + 'static,
-    T::Output: Send + 'static
+    fn handle_connection<T>(&mut self, protocol: fn(TcpConnection) -> T, connection: TcpConnection)
+        where T: Future + Send + 'static,
+              T::Output: Send + 'static
     {
-        println!("Connection received from {} to {} at {:?}", connection.peer_socket_addr, connection.local_socket_addr, connection.date_open);
-        protocol(connection).await;
-        println!("Connection disconneted 1");
+        let peer = connection.peer_socket_addr;
+        let local = connection.local_socket_addr;
+        let date_open = connection.date_open;
+        println!("Connection received from {} to {} at {:?}", peer, local, date_open);
+        tokio::spawn(async move {
+            protocol(connection).await;
+            println!("Disconnection from {} to {}", peer, local);
+        });
     }
 
     pub async fn stop() {}
 }
 
-// TODO: add a connection pool to avoid DOS
+// TODO: add a connection pool to avoid DDOS
 struct TcpClient {}
 
 impl TcpClient {

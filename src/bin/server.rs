@@ -31,9 +31,7 @@ async fn main() -> io::Result<()> {
 async fn echo_protocol(stream: TcpConnection) -> io::Result<()> {
     let stream = stream.stream;
     let peer_addr = stream.peer_addr()?;
-    println!("Connection from {}:{}", peer_addr.ip(), peer_addr.port());
     let (mut recv, mut send) = io::split(stream);
     io::copy(&mut recv, &mut send).await?;
-    println!("Disconnection from {}:{}", peer_addr.ip(), peer_addr.port());
     Ok(())
 }
