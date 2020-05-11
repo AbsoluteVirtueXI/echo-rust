@@ -7,6 +7,7 @@ use std::future::Future;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io;
 use tokio::stream::{StreamExt};
+use async_trait::async_trait;
 
 const UNSPECIFIED_IP: Ipv4Addr = Ipv4Addr::UNSPECIFIED;
 const UNSPECIFIED_PORT: u16 = 0;
@@ -56,6 +57,7 @@ enum Client {
 
 // TODO: add a connection pool to avoid DOS
 pub struct TcpServer {
+    // TODO: permit to 1 server to bind on multiple port
     pub listener: TcpListener,
     pub connection_pool: Vec<TcpConnection>,
 }
@@ -74,6 +76,7 @@ impl TcpServer {
         where T: Future + Send + 'static,
               T::Output: Send + 'static,
     {
+        println!("Server started");
         while let Some(tcp_stream) = self.listener.incoming().map(
             |res_stream| {
                 match res_stream {
@@ -211,3 +214,12 @@ impl Response {
         size_of_val(&self.content[..])
     }
 }
+//
+// //TEST
+// #[async_trait]
+// pub trait AppProtocol {
+//     async fn data_received(&mut self);
+//
+// }
+
+
